@@ -156,18 +156,22 @@ covergroup ZicsrV_cg with function sample(ins_t ins);
     }
 
     // attempt to set lmul to all values
-    vset_lmul: coverpoint ins.prev.insn[22:20] {
-        // autofill 000-111, ignore 3'b100 (reserved)
-        ignore_bins reserved = {3'b100};
+    mLMUL_all: coverpoint ins.current.mLMUL {
+        bins m1  = {3'b000};
+        bins m2  = {3'b001};
+        bins m4  = {3'b010};
+        bins m8  = {3'b011};
+        bins mf2 = {3'b111};
+        bins mf4 = {3'b110};
+        bins mf8 = {3'b101};
     }
 
     // attempt to set sew to all values
-    vset_sew: coverpoint ins.prev.insn[25:23] {
-        // autofill 000-011
-        ignore_bins reserved_100 = {3'b100};
-        ignore_bins reserved_101 = {3'b101};
-        ignore_bins reserved_110 = {3'b110};
-        ignore_bins reserved_111 = {3'b111};
+    eSEW_all: coverpoint ins.current.eSEW {
+        bins eight      = {0};
+        bins sixteen    = {1};
+        bins thirtytwo  = {2};
+        bins sixtyfour  = {3};
     }
 
     // rs2 in vsetvl is written to vtype
@@ -188,11 +192,11 @@ covergroup ZicsrV_cg with function sample(ins_t ins);
         ignore_bins reserved_111 = {3'b111};
     }
 
-    cp_sew_lmul_vsetvl:         cross vsetvl_instruction, rs2_vtype_legal, rs2_lmul, rs2_sew;
-    cp_sew_lmul_vset_i_vli:     cross vset_i_vli_instructions, vset_sew, vset_lmul;
+    cp_sew_lmul_vsetvl:         cross vsetvl_instruction,      rs2_vtype_legal,  rs2_lmul, rs2_sew;
+    cp_sew_lmul_vset_i_vli:     cross vset_i_vli_instructions,        eSEW_all, mLMUL_all;
 
     //////////////////////////////////////////////////////////////////////////////////
-    // cr_vill_vset*
+    // cp_vill_vset*
     // writes vtype with legal lmul and sew values starting with vill = 1
     //////////////////////////////////////////////////////////////////////////////////
 
@@ -200,27 +204,17 @@ covergroup ZicsrV_cg with function sample(ins_t ins);
         bins vill_set = {1};
     }
 
-    vtype_lmul_8: coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_BEFORE, "vtype", "vlmul") {
-        bins two = {3};
+    rs2_lmul_8: coverpoint ins.current.rs2_val[2:0] {
+        // autofill all combinations of lmul, ignore 3'b100 (reserved)
+        bins eight = {3'b011};
     }
 
-    vtype_all_sew_supported: coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_BEFORE, "vtype", "vsew") {
-        `ifdef SEW8_SUPPORTED
-        bins eight      = {0};
-        `endif
-        `ifdef SEW16_SUPPORTED
-        bins sixteen    = {1};
-        `endif
-        `ifdef SEW32_SUPPORTED
-        bins thirtytwo  = {2};
-        `endif
-        `ifdef SEW64_SUPPORTED
-        bins sixtyfour  = {3};
-        `endif
+    mLMUL_8: coverpoint ins.current.mLMUL {
+        bins m8 = {3};
     }
 
-    cp_vill_vsetvl:     cross vsetvl_instruction,       vtype_prev_vill_set, rs2_vtype_legal,   vtype_all_sew_supported, vtype_lmul_8;
-    cp_vill_vset_i_vli: cross vset_i_vli_instructions,  vtype_prev_vill_set,                    vtype_all_sew_supported, vtype_lmul_8;
+    cp_vill_vsetvl:     cross vsetvl_instruction,       vtype_prev_vill_set, rs2_vtype_legal,  rs2_sew, rs2_lmul_8;
+    cp_vill_vset_i_vli: cross vset_i_vli_instructions,  vtype_prev_vill_set,                  eSEW_all, mLMUL_8;
 
     //////////////////////////////////////////////////////////////////////////////////
     // cp_vill_vsetvl_rs2_vill
@@ -232,7 +226,7 @@ covergroup ZicsrV_cg with function sample(ins_t ins);
         bins set = {1};
     }
 
-    cp_vill_vsetvl_rs2_vill : cross vsetvl_instruction, vtype_prev_vill_set, rs2_vtype_legal,   vtype_all_sew_supported, vtype_lmul_8, rs2_vill_set;
+    cp_vill_vsetvl_rs2_vill : cross vsetvl_instruction, vtype_prev_vill_set, rs2_vtype_legal, rs2_sew, rs2_lmul_8, rs2_vill_set;
 
     //////////////////////////////////////////////////////////////////////////////////
     // cp_vsetvl_rs2_vill
@@ -270,14 +264,9 @@ covergroup ZicsrV_cg with function sample(ins_t ins);
     cp_vtype_vill_set_vl_0 : cross vsetvl_instruction, rs1_non_zero, rs2_vill_set, vl_nonzero;
 
     //////////////////////////////////////////////////////////////////////////////////
-    // cp_vsetvl_i_rd_*_rs1_*
+    // cp_vsetvl_rd_*_rs1_*
     // checks behavior regarding setting the vl register to max or leave unchanged
     //////////////////////////////////////////////////////////////////////////////////
-
-    vsetvl_i_instructions: coverpoint ins.current.insn {
-        wildcard bins vsetvli   =   {32'b0000_?_?_???_???_?????_111_?????_1010111};
-        wildcard bins vsetvl    =   {32'b1000000_?????_?????_111_?????_1010111};
-    }
 
     vl_not_max: coverpoint (get_csr_val(ins.hart, ins.issue, `SAMPLE_BEFORE, "vl", "vl") ==
                             get_vtype_vlmax(ins.hart, ins.issue, `SAMPLE_BEFORE)) {
@@ -301,7 +290,7 @@ covergroup ZicsrV_cg with function sample(ins_t ins);
                                             bins true = {1};
                                         }
 
-    vtype_all_lmul_supported : coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_BEFORE, "vtype", "vlmul") {
+    rs2_lmul_supported : coverpoint ins.current.rs2_val[2:0] {
         `ifdef LMULf8_SUPPORTED
         bins eigth  = {5};
         `endif
@@ -317,13 +306,42 @@ covergroup ZicsrV_cg with function sample(ins_t ins);
         bins eight  = {3};
     }
 
-    cp_vsetvl_i_rd_nx0_rs1_x0 : cross vsetvl_i_instructions, vl_not_max, rd_n0, rs1_x0, vtype_all_sew_supported, vtype_all_lmul_supported;
-    cp_vsetvl_i_rd_x0_rs1_x0  : cross vsetvl_i_instructions, vl_nonzero, rd_x0, rs1_x0, vset_i_vli_vlmax_unchanged;
+    cp_vsetvl_rd_nx0_rs1_x0 : cross vsetvl_instruction, vl_not_max, rd_n0, rs1_x0, rs2_sew, rs2_lmul_supported;
+    cp_vsetvl_rd_x0_rs1_x0  : cross vsetvl_instruction, vl_nonzero, rd_x0, rs1_x0, vset_i_vli_vlmax_unchanged;
+
+    //////////////////////////////////////////////////////////////////////////////////
+    // cp_vsetvli_rd_*_rs1_*
+    // checks behavior regarding setting the vl register to max or leave unchanged
+    //////////////////////////////////////////////////////////////////////////////////
+
+    mLMUL_all_supported : coverpoint ins.current.mLMUL {
+        `ifdef LMULf8_SUPPORTED
+        bins eigth  = {5};
+        `endif
+        `ifdef LMULf4_SUPPORTED
+        bins fourth = {6};
+        `endif
+        `ifdef LMULf2_SUPPORTED
+        bins half   = {7};
+        `endif
+        bins one    = {0};
+        bins two    = {1};
+        bins four   = {2};
+        bins eight  = {3};
+    }
+
+    cp_vsetvli_rd_nx0_rs1_x0 : cross vsetvli_instruction, vl_not_max, rd_n0, rs1_x0, eSEW_all, mLMUL_all_supported;
+    cp_vsetvli_rd_x0_rs1_x0  : cross vsetvli_instruction, vl_nonzero, rd_x0, rs1_x0, vset_i_vli_vlmax_unchanged;
 
     //////////////////////////////////////////////////////////////////////////////////
     // cp_vsetvl_i_avl_*
     // tests corner case avl behavior on the vset instructions
     //////////////////////////////////////////////////////////////////////////////////
+
+    vsetvl_i_instructions: coverpoint ins.current.insn {
+        wildcard bins vsetvli   =   {32'b0000_?_?_???_???_?????_111_?????_1010111};
+        wildcard bins vsetvl    =   {32'b1000000_?????_?????_111_?????_1010111};
+    }
 
     rs1_eq_zero : coverpoint (ins.current.rs1_val == 0 & ins.current.insn[19:15] != 0) {
         bins true = {1};
@@ -364,7 +382,7 @@ covergroup ZicsrV_cg with function sample(ins_t ins);
     cp_vsetvl_i_avl_eq_2x_vlmax : cross vsetvl_i_instructions, rs1_eq_2x_vlmax;
     cp_vsetvl_i_avl_gt_2x_vlmax : cross vsetvl_i_instructions, rs1_gt_2x_vlmax;
 
-    cp_vsetivli_avl_corners     : cross vsetivli_instruction, vtype_all_sew_supported, imm5_corners, vtype_lmul_1;
+    cp_vsetivli_avl_corners     : cross vsetivli_instruction, eSEW_all, imm5_corners, vtype_lmul_1;
 
     //////////////////////////////////////////////////////////////////////////////////
     // cp_vstart_out_of_bounds
@@ -389,4 +407,10 @@ endgroup
 
 function void zicsrv_sample(int hart, int issue, ins_t ins);
     ZicsrV_cg.sample(ins);
+    $display("PC: %h", ins.current.pc_rdata);
+    $display("instr: %s", ins.current.inst_name);
+    $display("eSEW: %b", ins.current.eSEW);
+    $display("mLMUL: %b", ins.current.mLMUL);
+    $display("rs2: %s", ins.current.rs2);
+    $display("rs2_val: %h", ins.current.rs2_val);
 endfunction

@@ -168,9 +168,12 @@ def cp_vsetvl_i_rd_nx0_rs1_x0(pathname):
         lmuls = ["1", "2", "4", "8", "f2", "f4", "f8"]
 
         print("// Tests for cp_vsetvl_i_rd_nx0_rs1_x0")
+        print("\tli t0, 1    // Set up t0 = 1 for resetting vl")
+        print()
         for sew in sews:
             for lmul in lmuls:
                 print("\t// SEW = " + sew + ", LMUL = " + lmul)
+                print("\tvsetvli  x6, t0, e8, m1, tu, mu   // Reset vl = 1 and vtype")
                 print("\tvsetvli  x8, x0, e" + sew + ", m" + lmul + ", tu, mu")
                 print("\tcsrr     x1, vl")
                 print("\tRVTEST_SIGUPD(x3, x1)")
@@ -180,7 +183,9 @@ def cp_vsetvl_i_rd_nx0_rs1_x0(pathname):
             if i not in [4, 12, 20, 28]: # LMUL = 3'b100 is reserved
                 ih = hex(i)
                 print(f"\t// vtype[7:0] = 0_0_{format(i >> 3, '03b')}_{format(i & 0b111, '03b')}")
+                print("\tvsetvli  x6, t0, e8, m1, tu, mu   // Reset vl = 1 and vtype")
                 print("\tli       t2, " + str(ih))
+                print("\tvsetvl   x8, x0, t2")
                 print("\tcsrr     x1, vl")
                 print("\tRVTEST_SIGUPD(x3, x1)")
                 print()
