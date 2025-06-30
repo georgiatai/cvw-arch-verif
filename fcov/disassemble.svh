@@ -1160,7 +1160,7 @@ function string disassemble (logic [31:0] instrRaw);
     VSM_V:            $sformat(decoded, "vsm.v %s, (%s)",                 vs3, rs1);
 
     VSETVLI:          $sformat(decoded, "vsetvli %s, %s, %s, %s, %s, %s", rd, rs1, eSEW, mLMUL, ta, ma);
-    VSETIVLI:         $sformat(decoded, "vsetivli %s, %s, %s, %s, %s, %s", rd, uimm5, eSEW, mLMUL, ta, ma);
+    VSETIVLI:         $sformat(decoded, "vsetivli %s, %0d, %s, %s, %s, %s", rd, uimm5, eSEW, mLMUL, ta, ma);
     VSETVL:           $sformat(decoded, "vsetvl %s, %s, %s",              rd, rs1, rs2);
 
     VANDN_VV:    $sformat(decoded, "vandn.vv %s, %s, %s%s", vd, vs2, vs1, vm);

@@ -92,7 +92,6 @@ function int get_vlmax_params(int hart, int issue, logic[2:0] vsew, logic[2:0] v
 endfunction
 
 function logic check_vtype_sew_supported(`XLEN_BITS vsew);
-
     `ifdef SEW8_SUPPORTED
     if (vsew == 0) return 1'b1;
     `endif

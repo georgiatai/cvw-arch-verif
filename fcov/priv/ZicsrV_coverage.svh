@@ -204,6 +204,10 @@ covergroup ZicsrV_cg with function sample(ins_t ins);
         bins vill_set = {1};
     }
 
+    rs2_vtype_not_reserved: coverpoint ins.current.rs2_val[`XLEN-2:8] {
+        bins legal     =   {0};
+    }
+
     rs2_lmul_8: coverpoint ins.current.rs2_val[2:0] {
         // autofill all combinations of lmul, ignore 3'b100 (reserved)
         bins eight = {3'b011};
@@ -213,8 +217,8 @@ covergroup ZicsrV_cg with function sample(ins_t ins);
         bins m8 = {3};
     }
 
-    cp_vill_vsetvl:     cross vsetvl_instruction,       vtype_prev_vill_set, rs2_vtype_legal,  rs2_sew, rs2_lmul_8;
-    cp_vill_vset_i_vli: cross vset_i_vli_instructions,  vtype_prev_vill_set,                  eSEW_all, mLMUL_8;
+    cp_vill_vsetvl:     cross vsetvl_instruction,       vtype_prev_vill_set, rs2_vtype_not_reserved,  rs2_sew, rs2_lmul_8;
+    cp_vill_vset_i_vli: cross vset_i_vli_instructions,  vtype_prev_vill_set,                         eSEW_all, mLMUL_8;
 
     //////////////////////////////////////////////////////////////////////////////////
     // cp_vill_vsetvl_rs2_vill
@@ -226,7 +230,7 @@ covergroup ZicsrV_cg with function sample(ins_t ins);
         bins set = {1};
     }
 
-    cp_vill_vsetvl_rs2_vill : cross vsetvl_instruction, vtype_prev_vill_set, rs2_vtype_legal, rs2_sew, rs2_lmul_8, rs2_vill_set;
+    cp_vill_vsetvl_rs2_vill : cross vsetvl_instruction, vtype_prev_vill_set, rs2_vtype_not_reserved, rs2_sew, rs2_lmul_8, rs2_vill_set;
 
     //////////////////////////////////////////////////////////////////////////////////
     // cp_vsetvl_rs2_vill
@@ -245,7 +249,7 @@ covergroup ZicsrV_cg with function sample(ins_t ins);
         bins vill_not_set = {0};
     }
 
-    cp_vsetvl_rs2_vill : cross vsetvl_instruction, rs2_vill_set, rs2_sew_supported, rs2_lmul_1, rs2_vtype_legal, vtype_prev_vill_clear;
+    cp_vsetvl_rs2_vill : cross vsetvl_instruction, rs2_vill_set, rs2_sew_supported, rs2_lmul_1, rs2_vtype_not_reserved, vtype_prev_vill_clear;
 
     //////////////////////////////////////////////////////////////////////////////////
     // cp_vtype_vill_set_vl_0
@@ -281,12 +285,12 @@ covergroup ZicsrV_cg with function sample(ins_t ins);
         bins zero = {0};
     }
 
-    rd_x0 : coverpoint ins.current.insn[19:15] {
+    rd_x0 : coverpoint ins.current.insn[11:7] {
         bins zero = {0};
     }
 
-    vset_i_vli_vlmax_unchanged : coverpoint (get_vtype_vlmax(ins.hart, ins.issue, `SAMPLE_BEFORE)
-                                        == get_vlmax_params(ins.hart, ins.issue, ins.current.insn[25:23], ins.current.insn[22:20])) {
+    vsetvl_vlmax_unchanged : coverpoint (get_vtype_vlmax(ins.hart, ins.issue, `SAMPLE_BEFORE)
+                                        == get_vlmax_params(ins.hart, ins.issue, ins.current.rs2_val[5:3], ins.current.rs2_val[2:0])) {
                                             bins true = {1};
                                         }
 
@@ -307,7 +311,7 @@ covergroup ZicsrV_cg with function sample(ins_t ins);
     }
 
     cp_vsetvl_rd_nx0_rs1_x0 : cross vsetvl_instruction, vl_not_max, rd_n0, rs1_x0, rs2_sew, rs2_lmul_supported;
-    cp_vsetvl_rd_x0_rs1_x0  : cross vsetvl_instruction, vl_nonzero, rd_x0, rs1_x0, vset_i_vli_vlmax_unchanged;
+    cp_vsetvl_rd_x0_rs1_x0  : cross vsetvl_instruction, vl_nonzero, rd_x0, rs1_x0, vsetvl_vlmax_unchanged;
 
     //////////////////////////////////////////////////////////////////////////////////
     // cp_vsetvli_rd_*_rs1_*
@@ -330,8 +334,13 @@ covergroup ZicsrV_cg with function sample(ins_t ins);
         bins eight  = {3};
     }
 
+    vsetvli_vlmax_unchanged : coverpoint (get_vtype_vlmax(ins.hart, ins.issue, `SAMPLE_BEFORE)
+                                        == get_vlmax_params(ins.hart, ins.issue, ins.current.insn[25:23], ins.current.insn[22:20])) {
+                                            bins true = {1};
+                                        }
+
     cp_vsetvli_rd_nx0_rs1_x0 : cross vsetvli_instruction, vl_not_max, rd_n0, rs1_x0, eSEW_all, mLMUL_all_supported;
-    cp_vsetvli_rd_x0_rs1_x0  : cross vsetvli_instruction, vl_nonzero, rd_x0, rs1_x0, vset_i_vli_vlmax_unchanged;
+    cp_vsetvli_rd_x0_rs1_x0  : cross vsetvli_instruction, vl_nonzero, rd_x0, rs1_x0, vsetvli_vlmax_unchanged;
 
     //////////////////////////////////////////////////////////////////////////////////
     // cp_vsetvl_i_avl_*
@@ -372,8 +381,8 @@ covergroup ZicsrV_cg with function sample(ins_t ins);
         // all generated bins for imm corners
     }
 
-    vtype_lmul_1: coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_BEFORE, "vtype", "vlmul") {
-        bins one = {0};
+    mLMUL_1: coverpoint ins.current.mLMUL {
+        bins m1 = {0};
     }
 
     cp_vsetvl_i_avl_eq_zero     : cross vsetvl_i_instructions, rs1_eq_zero;
@@ -382,7 +391,7 @@ covergroup ZicsrV_cg with function sample(ins_t ins);
     cp_vsetvl_i_avl_eq_2x_vlmax : cross vsetvl_i_instructions, rs1_eq_2x_vlmax;
     cp_vsetvl_i_avl_gt_2x_vlmax : cross vsetvl_i_instructions, rs1_gt_2x_vlmax;
 
-    cp_vsetivli_avl_corners     : cross vsetivli_instruction, eSEW_all, imm5_corners, vtype_lmul_1;
+    cp_vsetivli_avl_corners     : cross vsetivli_instruction, eSEW_all, imm5_corners, mLMUL_1;
 
     //////////////////////////////////////////////////////////////////////////////////
     // cp_vstart_out_of_bounds
@@ -407,10 +416,4 @@ endgroup
 
 function void zicsrv_sample(int hart, int issue, ins_t ins);
     ZicsrV_cg.sample(ins);
-    $display("PC: %h", ins.current.pc_rdata);
-    $display("instr: %s", ins.current.inst_name);
-    $display("eSEW: %b", ins.current.eSEW);
-    $display("mLMUL: %b", ins.current.mLMUL);
-    $display("rs2: %s", ins.current.rs2);
-    $display("rs2_val: %h", ins.current.rs2_val);
 endfunction
